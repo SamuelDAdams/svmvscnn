@@ -16,27 +16,34 @@ class Net1(nn.Module):
         concat = self.drop(torch.cat(pool, dim=1))
         return self.fc(concat)
 
-class Net2(nn.Module): #53%
-    def __init__(self, dropout, classes):
+class Net2(nn.Module): #87% with k = [2, 4, 8, 16, 32, 64], k_amount = 64
+    def __init__(self, dropout, channels, kernels, classes):
         super(Net2, self).__init__()
         
-        content_dim = 256
+        self.conv1 = nn.ModuleList([nn.Conv1d(in_channels=1, out_channels=channels, kernel_size=k) for k in kernels])
+        self.dropout = nn.Dropout(dropout)
+        self.sigmoid = nn.Sigmoid()
+        #self.norm = nn.BatchNorm1d()
 
-        self.conv = nn.Sequential(
-            nn.Conv1d(in_channels=1, out_channels=256, kernel_size=3),
-            nn.ReLU(),
-            nn.MaxPool1d(kernel_size=750),
-            nn.ReLU(),
-            nn.Dropout(dropout)
+        # self.conv1 = nn.Sequential(
+        #     nn.Conv1d(in_channels=1, out_channels=128, kernel_size=3),
+        #     nn.ReLU(),
+        #     nn.MaxPool1d(kernel_size=750),
+        #     nn.BatchNorm1d(256),
+        #     nn.Dropout(dropout),
+        # )
+        self.lin = nn.Sequential(
+            nn.Linear(channels * len(kernels), 32),
+            nn.Linear(32,classes),
         )
-        self.fc1 = nn.Linear(256, 32)
-        self.fc2 = nn.Linear(32, classes)
-        #self.drop = nn.Dropout(dropout)
     
     def forward(self, batch):
-        out = self.conv(torch.reshape(batch, (len(batch), 1, 768)))
+        x = torch.reshape(batch, (len(batch), 1, 768))
+        x = [func.relu(conv(x)) for conv in self.conv1]
+        x = [func.max_pool1d(l, l.size(2)) for l in x]
+        x = torch.cat(x, dim=1).squeeze()
+        x = self.dropout(x)
         #out = self.drop(out)
         #logits = self.fc(out.squeeze(2))
-        out = self.fc1(out.squeeze(2))
-        logits = self.fc2(out)
-        return logits
+        logits = self.lin(x)
+        return self.sigmoid(logits)
