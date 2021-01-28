@@ -17,8 +17,13 @@ class Net1(nn.Module):
         return self.fc(concat)
 
 class Net2(nn.Module): #87% with k = [2, 4, 8, 16, 32, 64], k_amount = 64
-    def __init__(self, dropout, channels, kernels, classes):
+    def __init__(self):
         super(Net2, self).__init__()
+        #dropout=.3, channels=16, kernels=[2, 4, 8, 16, 32, 64], classes=2
+        dropout=.3
+        channels=16
+        kernels=[2, 4, 8, 16, 32, 64]
+        classes=2
         
         self.conv1 = nn.ModuleList([nn.Conv1d(in_channels=1, out_channels=channels, kernel_size=k) for k in kernels])
         self.dropout = nn.Dropout(dropout)
