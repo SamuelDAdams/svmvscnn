@@ -6,7 +6,7 @@ from datasets import load_dataset
 from sklearn.svm import LinearSVC
 import numpy as np
 import pandas as pd
-from sentence_transformers import SentenceTransformer
+#from sentence_transformers import SentenceTransformer
 import torch
 from torch import nn
 from torch.nn import functional as func
@@ -53,7 +53,7 @@ def train_model(model, opt, train_load, val_load, test_load, epochs):
         losses = []
         lossf = nn.CrossEntropyLoss()
         for _, batch in enumerate(train_load):
-            embed_gpu, lab_gpu = tuple(i.to('cuda') for i in batch)
+            embed_gpu, lab_gpu = tuple(i.to(device) for i in batch)
             model.zero_grad()
             logits = model(embed_gpu)
             loss = lossf(logits, lab_gpu)
@@ -77,7 +77,7 @@ def validate_model(model, loader, set_name):
     acc = []
     losses = []
     for batch in loader:
-        gpu_embed, gpu_lab = tuple(i.to('cuda') for i in batch)
+        gpu_embed, gpu_lab = tuple(i.to(device) for i in batch)
 
         with torch.no_grad():
             logits = model(gpu_embed)
@@ -91,26 +91,27 @@ def validate_model(model, loader, set_name):
     print('{} acc: {}'.format(set_name, np.mean(acc)))
     return np.mean(losses)
 
-
+device = 'cuda'
+#device = 'cpu'
 #torch.autograd.set_detect_anomaly(True)
 datasets = {'amazon_us_reviews' : ['Digital_Software_v1_00']}
 #distilbert = SentenceTransformer('stsb-distilbert-base', device='cuda')
 for name in datasets.keys():
     for subset in datasets.get(name):
-#         dataset = None
-#         if not checkpaths(name, subset):
-#             if subset == []:
-#                 dataset = load_dataset(name)
-#             else:
-#                 dataset = load_dataset(name, subset)
-#             data = dataset['train']['review_body']
-#             labels_sav = dataset['train']['star_rating']
-#             labels_sav = list(map(lambda x: 1 if x > 2 else 0, labels_sav))
+        dataset = None
+        if not checkpaths(name, subset):
+            if subset == []:
+                dataset = load_dataset(name)
+            else:
+                dataset = load_dataset(name, subset)
+            data = dataset['train']['review_body']
+            labels_sav = dataset['train']['star_rating']
+            labels_sav = list(map(lambda x: 1 if x > 2 else 0, labels_sav))
 
-#             distilbert_embed = distilbert.encode(data, show_progress_bar=False)  #progress bar crashes on sentence-transformers=0.4.1, fixed in 0.4.1.2, but not yet available on conda
-#             base_name = name + '_'+ subset
-#             np.save(base_name + '_embeddings.npy', distilbert_embed, allow_pickle=True)
-#             np.save(base_name + '_labels.npy', labels_sav, allow_pickle=True)
+            distilbert_embed = distilbert.encode(data, show_progress_bar=False)  #progress bar crashes on sentence-transformers=0.4.1, fixed in 0.4.1.2, but not yet available on conda
+            base_name = name + '_'+ subset
+            np.save(base_name + '_embeddings.npy', distilbert_embed, allow_pickle=True)
+            np.save(base_name + '_labels.npy', labels_sav, allow_pickle=True)
         
         base_name = name + '_' + subset
         #lines = np.load(base_name + '_lines.npy', allow_pickle=True)
@@ -156,10 +157,10 @@ for name in datasets.keys():
         
         #net = nets.Net1(filter_sizes=[2,3,4], filter_amount=10, dropout=.1,  classes=5) 
         net = nets.Net2()
-        net.to('cuda')
+        net.to(device)
         optimizer = AdamW(net.parameters(), lr=0.001)
         train_model(net, optimizer, train_loader, val_loader, test_loader, 10)
-        train_svm(X_tfidf_train, y_train, X_tfidf_test, y_test)
+        #train_svm(X_tfidf_train, y_train, X_tfidf_test, y_test)
         #svc = LinearSVC(verbose=True, class_weight='balanced')
         
 
