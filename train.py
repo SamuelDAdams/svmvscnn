@@ -143,20 +143,20 @@ for name in datasets.keys():
 
         X_train = TensorDataset(X_embed_train, y_train_tensor)
         train_sampler = RandomSampler(X_train)
-        train_loader = DataLoader(X_train, sampler=train_sampler, batch_size=50)
+        train_loader = DataLoader(X_train, sampler=train_sampler, batch_size=100)
 
         val_data = TensorDataset(X_embed_val, y_val_tensor)
         val_sampler = SequentialSampler(val_data)
-        val_loader = DataLoader(val_data, sampler=val_sampler, batch_size=50)
+        val_loader = DataLoader(val_data, sampler=val_sampler, batch_size=100)
 
         test_data = TensorDataset(X_embed_test, y_test_tensor)
         test_sampler = SequentialSampler(test_data)
-        test_loader = DataLoader(test_data, sampler=test_sampler, batch_size=50)
+        test_loader = DataLoader(test_data, sampler=test_sampler, batch_size=100)
 
         
         
         #net = nets.Net1(filter_sizes=[2,3,4], filter_amount=10, dropout=.1,  classes=5) 
-        net = nets.Net2()
+        net = nets.Net3()
         net.to(device)
         optimizer = AdamW(net.parameters(), lr=0.001)
         train_model(net, optimizer, train_loader, val_loader, test_loader, 10)
