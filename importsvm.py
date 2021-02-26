@@ -2,16 +2,22 @@ import crypten
 import crypten.mpc as mpc
 import torch
 import nets
+import torch.functional as F
+import crypten.communicator as comm
 
 @mpc.run_multiprocess(world_size=2)
 def run():
-    dummy_model = nets.Net3()
+    dummy_model = nets.Net2()
     #plaintext_model = crypten.load('models/CNN.pth', dummy_model=dummy_model, src=0, map_location=torch.device('cpu'))
     plaintext_model = crypten.load('models/CNN.pth', dummy_model=dummy_model, src=0)
     dummy_input = torch.empty((1, 1, 768))
     dummy_input.to('cuda')
     private_model = crypten.nn.from_pytorch(plaintext_model, dummy_input)
     private_model.encrypt()
+    input = torch.rand((1, 1, 768))
+    input = crypten.cryptensor(input, src=0)
+    classification = private_model(input)
+    print(classification)
     print('done')
 
 @mpc.run_multiprocess(world_size=2)
@@ -41,6 +47,17 @@ def test_mp2d():
         print("Epoch: {0:d} Loss: {1:.4f}".format(i, loss_value.get_plain_text()))
     print('done')
 
+@mpc.run_multiprocess(world_size=2)
+def test_mp1d():
+    x_small = torch.rand(10, 3, 28)
+    mp = torch.nn.MaxPool1d(2, return_indices=True)
+    res, ind = mp(x_small)
+    print(ind)
+    x_crypt = mpc.MPCTensor(x_small, ptype=mpc.arithmetic)
+
+    
+
 crypten.init()
+# test_mp1d()
 test_mp2d()
 #run()
