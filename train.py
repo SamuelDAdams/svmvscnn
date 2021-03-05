@@ -15,6 +15,8 @@ from torch.utils.data import TensorDataset, DataLoader, RandomSampler, Sequentia
 from os import path
 import nets
 import matplotlib.pyplot as plt
+import hiddenlayer as hl
+import graphviz
 
 # def build_cnn(config):
 #     if config == 1:
@@ -45,7 +47,7 @@ def train_svm(X_tr, y_tr, X_te, y_te):
     print('SVM_tfidf confusion matrix:')
     print(confusion_matrix(y_te, svm_predictions))
 
-def train_model(model, opt, train_load, val_load, test_load, epochs):
+def train_model(model, opt, train_load, val_load, test_load, epochs, model_name=""):
     print('Starting training')
     epoch_losses = []
     for epoch in range(epochs):
@@ -67,7 +69,7 @@ def train_model(model, opt, train_load, val_load, test_load, epochs):
         val_loss = validate_model(model, val_load, 'Validation')
         epoch_losses.append((epoch, epoch_loss, val_loss))
     validate_model(model, test_load, 'Test')
-    graph(epoch_losses, 'CNN', 'amazon_us_reviews')
+    graph(epoch_losses, model_name, 'amazon_us_reviews')
     torch.save(model, 'models/CNN.pth')
     return epoch_losses
 
@@ -91,8 +93,8 @@ def validate_model(model, loader, set_name):
     print('{} acc: {}'.format(set_name, np.mean(acc)))
     return np.mean(losses)
 
-device = 'cuda'
-#device = 'cpu'
+#device = 'cuda'
+device = 'cpu'
 #torch.autograd.set_detect_anomaly(True)
 datasets = {'amazon_us_reviews' : ['Digital_Software_v1_00']}
 #distilbert = SentenceTransformer('stsb-distilbert-base', device='cuda')
@@ -106,7 +108,7 @@ for name in datasets.keys():
                 dataset = load_dataset(name, subset)
             data = dataset['train']['review_body']
             labels_sav = dataset['train']['star_rating']
-            labels_sav = list(map(lambda x: 1 if x > 2 else 0, labels_sav))
+            labels_sav = list(map(lambda x: 1 if x > 3 else 0, labels_sav))
 
             distilbert_embed = distilbert.encode(data, show_progress_bar=False)  #progress bar crashes on sentence-transformers=0.4.1, fixed in 0.4.1.2, but not yet available on conda
             base_name = name + '_'+ subset
@@ -118,12 +120,12 @@ for name in datasets.keys():
         dataset = load_dataset(name, subset)
         lines = dataset['train']['review_body']
         #np.save(base_name + '_lines.npy', lines, allow_pickle=True)
-        # print(len(lines))
-        # clv = dataset['train']['star_rating']
-        # amounts = []
-        # for cl in np.unique(clv):
-        #     amounts.append((cl, clv.count(cl)))
-        # print(amounts)
+        print(len(lines))
+        clv = dataset['train']['star_rating']
+        amounts = []
+        for cl in np.unique(clv):
+            amounts.append((cl, clv.count(cl)))
+        print(amounts)
 
         distilbert_embeddings = np.load(base_name + '_embeddings.npy', allow_pickle=True)
         labels = np.load(base_name + '_labels.npy', allow_pickle=True)
@@ -143,25 +145,28 @@ for name in datasets.keys():
 
         X_train = TensorDataset(X_embed_train, y_train_tensor)
         train_sampler = RandomSampler(X_train)
-        train_loader = DataLoader(X_train, sampler=train_sampler, batch_size=100)
+        train_loader = DataLoader(X_train, sampler=train_sampler, batch_size=25)
 
         val_data = TensorDataset(X_embed_val, y_val_tensor)
         val_sampler = SequentialSampler(val_data)
-        val_loader = DataLoader(val_data, sampler=val_sampler, batch_size=100)
+        val_loader = DataLoader(val_data, sampler=val_sampler, batch_size=25)
 
         test_data = TensorDataset(X_embed_test, y_test_tensor)
         test_sampler = SequentialSampler(test_data)
-        test_loader = DataLoader(test_data, sampler=test_sampler, batch_size=100)
+        test_loader = DataLoader(test_data, sampler=test_sampler, batch_size=25)
 
         
         
-        #net = nets.Net1(filter_sizes=[2,3,4], filter_amount=10, dropout=.1,  classes=5) 
-        net = nets.Net3()
+        #net = nets.Net1(filter_sizes=[2,3,4], filter_amount=10, dropout=.1,  classes=5)
+        train_svm(X_tfidf_train, y_train, X_tfidf_test, y_test)
+        svc = LinearSVC(verbose=True, class_weight='balanced')
+        net = nets.Net1()
+        arch = hl.build_graph(net, torch.zeros(1,1,768))
+        arch.save("architecture", format="jpg")
         net.to(device)
-        optimizer = AdamW(net.parameters(), lr=0.001)
-        train_model(net, optimizer, train_loader, val_loader, test_loader, 10)
-        #train_svm(X_tfidf_train, y_train, X_tfidf_test, y_test)
-        #svc = LinearSVC(verbose=True, class_weight='balanced')
+        optimizer = AdamW(net.parameters(), lr=0.002)
+        train_model(net, optimizer, train_loader, val_loader, test_loader, 100, model_name='Dense')
+        
         
 
     # Turns out svm is kinda bad at this, acc 0.6174

@@ -3,18 +3,16 @@ from torch import nn
 import torch.nn.functional as func
 
 class Net1(nn.Module):
-    def __init__(self, filter_sizes, filter_amount, dropout, classes):
+    def __init__(self):
         super(Net1, self).__init__()
-        self.convs = nn.ModuleList([nn.Conv1d(in_channels=1, out_channels=filter_amount, kernel_size=f) for f in filter_sizes])
-        self.fc = nn.Linear(len(filter_sizes) * filter_amount, classes)
-        self.drop = nn.Dropout(dropout)
+        self.fc1 = nn.Linear(768, 10)
+        self.fc2 = nn.Linear(10, 2)
     
     def forward(self, batch):
-        reshaped = torch.reshape(batch, (len(batch), 1, -1))
-        conv = [func.relu(con(reshaped)) for con in self.convs]
-        pool = [func.max_pool1d(c, c.shape[2]).squeeze(2) for c in conv]
-        concat = self.drop(torch.cat(pool, dim=1))
-        return self.fc(concat)
+        x = self.fc1(batch)
+        x = func.relu(x)
+        x = self.fc2(x)
+        return func.relu(x)
 
 class Net2(nn.Module): #87% with k = [2, 4, 8, 16, 32, 64], k_amount = 64
     def __init__(self):
@@ -121,3 +119,36 @@ class Net5(nn.Module): #87% with k = [2, 4, 8, 16, 32, 64], k_amount = 64
         x = func.relu(self.fc1(x))
         x = self.fc2(x)
         return x
+
+class Net6(nn.Module):
+    def __init__(self):
+        super(Net6, self).__init__()
+        dropout=.3
+        channels1=2
+        channels2=4
+        channels3=6
+        kernels1=[4, 8, 16]
+        kernels2=[2, 3, 4]
+        kernels3=[3, 4, 5]
+        classes=2
+        
+        self.conv0 = nn.Sequential(nn.Conv1d(in_channels=1, out_channels=channels1, kernel_size=kernels1[0]), nn.ReLU(), nn.MaxPool1d(3), nn.Conv1d(in_channels=channels1, out_channels=channels2, kernel_size=kernels2[0]), nn.ReLU(), nn.MaxPool1d(4), nn.Conv1d(in_channels=channels2, out_channels=channels3, kernel_size=kernels3[0]), nn.ReLU(), nn.MaxPool1d(6))
+        self.conv1 = nn.Sequential(nn.Conv1d(in_channels=1, out_channels=channels1, kernel_size=kernels1[1]), nn.ReLU(), nn.MaxPool1d(3), nn.Conv1d(in_channels=channels1, out_channels=channels2, kernel_size=kernels2[1]), nn.ReLU(), nn.MaxPool1d(4), nn.Conv1d(in_channels=channels2, out_channels=channels3, kernel_size=kernels3[1]), nn.ReLU(), nn.MaxPool1d(6))
+        self.conv2 = nn.Sequential(nn.Conv1d(in_channels=1, out_channels=channels1, kernel_size=kernels1[2]), nn.ReLU(), nn.MaxPool1d(3), nn.Conv1d(in_channels=channels1, out_channels=channels2, kernel_size=kernels2[2]), nn.ReLU(), nn.MaxPool1d(4), nn.Conv1d(in_channels=channels2, out_channels=channels3, kernel_size=kernels3[2]), nn.ReLU(), nn.MaxPool1d(5))
+
+        self.dropout = nn.Dropout(dropout)
+        self.lin = nn.Sequential(
+            nn.Linear(180, 32),
+            nn.Linear(32,classes),
+        )
+    
+    def forward(self, batch):
+        x = torch.reshape(batch, (-1, 1, 768))
+        x0 = self.conv0(x)
+        x1 = self.conv1(x)
+        x2 = self.conv2(x)
+        x = torch.cat([x0, x1, x2], dim=-1)
+        x = x.view(len(batch), -1)
+        x = self.dropout(x)
+        logits = self.lin(x)
+        return logits
