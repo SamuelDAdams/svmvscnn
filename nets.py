@@ -132,13 +132,13 @@ class Net6(nn.Module):
         kernels3=[3, 4, 5]
         classes=2
         
-        self.conv0 = nn.Sequential(nn.Conv1d(in_channels=1, out_channels=channels1, kernel_size=kernels1[0]), nn.ReLU(), nn.MaxPool1d(3), nn.Conv1d(in_channels=channels1, out_channels=channels2, kernel_size=kernels2[0]), nn.ReLU(), nn.MaxPool1d(4), nn.Conv1d(in_channels=channels2, out_channels=channels3, kernel_size=kernels3[0]), nn.ReLU(), nn.MaxPool1d(6))
-        self.conv1 = nn.Sequential(nn.Conv1d(in_channels=1, out_channels=channels1, kernel_size=kernels1[1]), nn.ReLU(), nn.MaxPool1d(3), nn.Conv1d(in_channels=channels1, out_channels=channels2, kernel_size=kernels2[1]), nn.ReLU(), nn.MaxPool1d(4), nn.Conv1d(in_channels=channels2, out_channels=channels3, kernel_size=kernels3[1]), nn.ReLU(), nn.MaxPool1d(6))
+        self.conv0 = nn.Sequential(nn.Conv1d(in_channels=1, out_channels=channels1, kernel_size=kernels1[0]), nn.ReLU(), nn.MaxPool1d(3), nn.Conv1d(in_channels=channels1, out_channels=channels2, kernel_size=kernels2[0]), nn.ReLU(), nn.MaxPool1d(4), nn.Conv1d(in_channels=channels2, out_channels=channels3, kernel_size=kernels3[0]), nn.ReLU(), nn.MaxPool1d(5))
+        self.conv1 = nn.Sequential(nn.Conv1d(in_channels=1, out_channels=channels1, kernel_size=kernels1[1]), nn.ReLU(), nn.MaxPool1d(3), nn.Conv1d(in_channels=channels1, out_channels=channels2, kernel_size=kernels2[1]), nn.ReLU(), nn.MaxPool1d(4), nn.Conv1d(in_channels=channels2, out_channels=channels3, kernel_size=kernels3[1]), nn.ReLU(), nn.MaxPool1d(5))
         self.conv2 = nn.Sequential(nn.Conv1d(in_channels=1, out_channels=channels1, kernel_size=kernels1[2]), nn.ReLU(), nn.MaxPool1d(3), nn.Conv1d(in_channels=channels1, out_channels=channels2, kernel_size=kernels2[2]), nn.ReLU(), nn.MaxPool1d(4), nn.Conv1d(in_channels=channels2, out_channels=channels3, kernel_size=kernels3[2]), nn.ReLU(), nn.MaxPool1d(5))
 
         self.dropout = nn.Dropout(dropout)
         self.lin = nn.Sequential(
-            nn.Linear(180, 32),
+            nn.Linear(204, 32),
             nn.Linear(32,classes),
         )
     

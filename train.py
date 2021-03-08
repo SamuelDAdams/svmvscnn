@@ -6,13 +6,13 @@ from datasets import load_dataset
 from sklearn.svm import LinearSVC
 import numpy as np
 import pandas as pd
-#from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer
 import torch
 from torch import nn
 from torch.nn import functional as func
 from torch.optim import AdamW
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
-from os import path
+from os import path, makedirs
 import nets
 import matplotlib.pyplot as plt
 import hiddenlayer as hl
@@ -32,12 +32,6 @@ def graph(loss_vals, model_name, dataset_name):
     plt.title('Training info for '+model_name +' on ' + dataset_name)
     plt.legend()
     plt.savefig('graphs/loss')
-
-def checkpaths(dataset_name, subset_name):
-    base_name = ''
-    if subset_name != '':
-        base_name = dataset_name + '_'+ subset_name
-    return path.exists(base_name + '_embeddings.npy') and path.exists(base_name + '_labels.npy') 
 
 def train_svm(X_tr, y_tr, X_te, y_te):
     svc = LinearSVC(verbose=True)
@@ -93,91 +87,84 @@ def validate_model(model, loader, set_name):
     print('{} acc: {}'.format(set_name, np.mean(acc)))
     return np.mean(losses)
 
-#device = 'cuda'
-device = 'cpu'
+device = 'cuda'
+# device = 'cpu'
 #torch.autograd.set_detect_anomaly(True)
-datasets = {'amazon_us_reviews' : ['Digital_Software_v1_00']}
-#distilbert = SentenceTransformer('stsb-distilbert-base', device='cuda')
-for name in datasets.keys():
-    for subset in datasets.get(name):
-        dataset = None
-        if not checkpaths(name, subset):
-            if subset == []:
-                dataset = load_dataset(name)
-            else:
-                dataset = load_dataset(name, subset)
-            data = dataset['train']['review_body']
-            labels_sav = dataset['train']['star_rating']
-            labels_sav = list(map(lambda x: 1 if x > 3 else 0, labels_sav))
+DATASET_NAME = 'amazon_us_reviews'
+SUBSET = 'Digital_Software_v1_00'
+if not path.exists('train/embeddings.npy'):
+    distilbert = SentenceTransformer('stsb-distilbert-base', device='cuda')
+    dataset = load_dataset(DATASET_NAME, SUBSET)
+    data = dataset['train']['review_body']
+    labels_sav = dataset['train']['star_rating']
+    amounts = []
+    for cl in np.unique(labels_sav):
+        amounts.append((cl, labels_sav.count(cl)))
+    print(amounts)
+    train_data, test_data, train_labels, test_labels = train_test_split(data, labels_sav, stratify=labels_sav, test_size=0.2)
 
-            distilbert_embed = distilbert.encode(data, show_progress_bar=False)  #progress bar crashes on sentence-transformers=0.4.1, fixed in 0.4.1.2, but not yet available on conda
-            base_name = name + '_'+ subset
-            np.save(base_name + '_embeddings.npy', distilbert_embed, allow_pickle=True)
-            np.save(base_name + '_labels.npy', labels_sav, allow_pickle=True)
-        
-        base_name = name + '_' + subset
-        #lines = np.load(base_name + '_lines.npy', allow_pickle=True)
-        dataset = load_dataset(name, subset)
-        lines = dataset['train']['review_body']
-        #np.save(base_name + '_lines.npy', lines, allow_pickle=True)
-        print(len(lines))
-        clv = dataset['train']['star_rating']
-        amounts = []
-        for cl in np.unique(clv):
-            amounts.append((cl, clv.count(cl)))
-        print(amounts)
+    train_labels = list(map(lambda x: 1 if x > 3 else 0, train_labels))
+    test_labels = list(map(lambda x: 1 if x > 3 else 0, test_labels))
 
-        distilbert_embeddings = np.load(base_name + '_embeddings.npy', allow_pickle=True)
-        labels = np.load(base_name + '_labels.npy', allow_pickle=True)
-        vectorizer = TfidfVectorizer()
-        tfidf_data = vectorizer.fit_transform(lines)
-        dataset = None
+    train_distilbert_embed = distilbert.encode(train_data, show_progress_bar=False)  #progress bar crashes on sentence-transformers=0.4.1, fixed in 0.4.1.2, but not yet available on conda
+    test_distilbert_embed = distilbert.encode(test_data, show_progress_bar=False)
+    makedirs('train', exist_ok=True)
+    makedirs('test', exist_ok=True)
+    np.save('train/embeddings.npy', train_distilbert_embed, allow_pickle=True)
+    np.save('train/labels.npy', train_labels, allow_pickle=True)
+    np.save('test/embeddings.npy', test_distilbert_embed, allow_pickle=True)
+    np.save('test/labels.npy', test_labels, allow_pickle=True)
 
-        X_tfidf_train, X_tfidf_test, X_embed_train, X_embed_test, y_train, y_test = \
-            train_test_split(tfidf_data, distilbert_embeddings, labels, test_size=0.2)
-        X_embed_train, X_embed_val, y_embed_train, y_embed_val = \
-            train_test_split(X_embed_train, y_train, test_size=0.2)
-        X_embed_train, X_embed_val, X_embed_test, = \
-         tuple(torch.tensor(dat) for dat in [X_embed_train, X_embed_val, X_embed_test])
-        y_train_tensor, y_val_tensor, y_test_tensor = \
-            tuple(torch.tensor(dat, dtype=torch.long) \
-            for dat in [y_embed_train, y_embed_val, y_test])
+train_embeddings = np.load('train/embeddings.npy', allow_pickle=True)
+train_labels = np.load('train/labels.npy', allow_pickle=True)
 
-        X_train = TensorDataset(X_embed_train, y_train_tensor)
-        train_sampler = RandomSampler(X_train)
-        train_loader = DataLoader(X_train, sampler=train_sampler, batch_size=25)
+test_embeddings = np.load('test/embeddings.npy', allow_pickle=True)
+test_labels = np.load('test/labels.npy', allow_pickle=True)
+# vectorizer = TfidfVectorizer()
+# tfidf_data = vectorizer.fit_transform(lines)
+# dataset = None
 
-        val_data = TensorDataset(X_embed_val, y_val_tensor)
-        val_sampler = SequentialSampler(val_data)
-        val_loader = DataLoader(val_data, sampler=val_sampler, batch_size=25)
+# X_tfidf_train, X_tfidf_test, X_embed_train, X_embed_test, y_train, y_test = \
+#     train_test_split(tfidf_data, distilbert_embeddings, labels, test_size=0.2)
+# X_embed_train, X_embed_val, y_embed_train, y_embed_val = \
+#     train_test_split(X_embed_train, y_train, test_size=0.2)
+X_embed_train, X_embed_test, = \
+    tuple(torch.tensor(dat) for dat in [train_embeddings, test_embeddings])
+y_train_tensor, y_test_tensor = \
+    tuple(torch.tensor(dat, dtype=torch.long) \
+    for dat in [train_labels, test_labels])
 
-        test_data = TensorDataset(X_embed_test, y_test_tensor)
-        test_sampler = SequentialSampler(test_data)
-        test_loader = DataLoader(test_data, sampler=test_sampler, batch_size=25)
+X_train = TensorDataset(X_embed_train, y_train_tensor)
+train_sampler = RandomSampler(X_train)
+train_loader = DataLoader(X_train, sampler=train_sampler, batch_size=25)
 
-        
-        
-        #net = nets.Net1(filter_sizes=[2,3,4], filter_amount=10, dropout=.1,  classes=5)
-        train_svm(X_tfidf_train, y_train, X_tfidf_test, y_test)
-        svc = LinearSVC(verbose=True, class_weight='balanced')
-        net = nets.Net1()
-        arch = hl.build_graph(net, torch.zeros(1,1,768))
-        arch.save("architecture", format="jpg")
-        net.to(device)
-        optimizer = AdamW(net.parameters(), lr=0.002)
-        train_model(net, optimizer, train_loader, val_loader, test_loader, 100, model_name='Dense')
-        
-        
+test_data = TensorDataset(X_embed_test, y_test_tensor)
+test_sampler = SequentialSampler(test_data)
+test_loader = DataLoader(test_data, sampler=test_sampler, batch_size=25)
 
-    # Turns out svm is kinda bad at this, acc 0.6174
-    # scaler = StandardScaler()
-    # norm_embeddings = scaler.fit(distilbert_embeddings)
-    # X_embed_norm_train = scaler.transform(X_embed_train)
-    # X_embed_norm_test = scaler.transform(X_embed_test)
-    # svc = LinearSVC(verbose=True, class_weight='balanced')
-    # svc.fit(X_embed_norm_train, y_train)
-    # svm_embed_predictions = svc.predict(X_embed_norm_test)
-    # print('SVM_embed_acc = {}'.format(accuracy_score(y_test, svm_embed_predictions)))
-    # print('SVM_embed confusion matrix:')
+
+
+#net = nets.Net1(filter_sizes=[2,3,4], filter_amount=10, dropout=.1,  classes=5)
+# train_svm(X_tfidf_train, y_train, X_tfidf_test, y_test)
+# svc = LinearSVC(verbose=True, class_weight='balanced')
+net = nets.Net1()
+arch = hl.build_graph(net, torch.zeros(1,1,768))
+arch.save("architecture", format="jpg")
+net.to(device)
+optimizer = AdamW(net.parameters(), lr=0.002)
+train_model(net, optimizer, train_loader, test_loader, test_loader, 100, model_name='CNN')
+
+
+
+# Turns out svm is kinda bad at this, acc 0.6174
+# scaler = StandardScaler()
+# norm_embeddings = scaler.fit(distilbert_embeddings)
+# X_embed_norm_train = scaler.transform(X_embed_train)
+# X_embed_norm_test = scaler.transform(X_embed_test)
+# svc = LinearSVC(verbose=True, class_weight='balanced')
+# svc.fit(X_embed_norm_train, y_train)
+# svm_embed_predictions = svc.predict(X_embed_norm_test)
+# print('SVM_embed_acc = {}'.format(accuracy_score(y_test, svm_embed_predictions)))
+# print('SVM_embed confusion matrix:')
 
 print('ok')
