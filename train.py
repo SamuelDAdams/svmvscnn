@@ -103,16 +103,21 @@ if not path.exists('train/embeddings.npy'):
     print(amounts)
     train_data, test_data, train_labels, test_labels = train_test_split(data, labels_sav, stratify=labels_sav, test_size=0.2)
 
-    train_labels = list(map(lambda x: 1 if x > 3 else 0, train_labels))
-    test_labels = list(map(lambda x: 1 if x > 3 else 0, test_labels))
+    train_bin_labels = list(map(lambda x: 1 if x > 3 else 0, train_labels))
+    test_bin_labels = list(map(lambda x: 1 if x > 3 else 0, test_labels))
 
     train_distilbert_embed = distilbert.encode(train_data, show_progress_bar=False)  #progress bar crashes on sentence-transformers=0.4.1, fixed in 0.4.1.2, but not yet available on conda
     test_distilbert_embed = distilbert.encode(test_data, show_progress_bar=False)
     makedirs('train', exist_ok=True)
     makedirs('test', exist_ok=True)
+    np.save('train/text.npy', train_data, allow_pickle=True)
     np.save('train/embeddings.npy', train_distilbert_embed, allow_pickle=True)
+    np.save('train/bin_labels.npy', train_bin_labels, allow_pickle=True)
     np.save('train/labels.npy', train_labels, allow_pickle=True)
+
+    np.save('test/text.npy', test_data, allow_pickle=True)
     np.save('test/embeddings.npy', test_distilbert_embed, allow_pickle=True)
+    np.save('test/bin_labels.npy', test_bin_labels, allow_pickle=True)
     np.save('test/labels.npy', test_labels, allow_pickle=True)
 
 train_embeddings = np.load('train/embeddings.npy', allow_pickle=True)
