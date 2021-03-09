@@ -123,7 +123,7 @@ class Net5(nn.Module): #87% with k = [2, 4, 8, 16, 32, 64], k_amount = 64
 class Net6(nn.Module):
     def __init__(self):
         super(Net6, self).__init__()
-        dropout=.3
+        dropout=.25
         channels1=2
         channels2=4
         channels3=6

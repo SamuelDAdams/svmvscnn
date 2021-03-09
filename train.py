@@ -21,6 +21,13 @@ import graphviz
 # def build_cnn(config):
 #     if config == 1:
 
+def gpu_to_cpu(loc, cls):
+    model = cls()
+    model.load_state_dict(torch.load(loc, map_location=torch.device('cpu')))
+    torch.save(model.state_dict(), loc)
+
+
+
 def graph(loss_vals, model_name, dataset_name):
     epochs = [x[0] for x in loss_vals]
     loss = [x[1] for x in loss_vals]
@@ -29,9 +36,10 @@ def graph(loss_vals, model_name, dataset_name):
     plt.plot(epochs, val_loss, label='Validation Loss')
     plt.ylabel('Loss')
     plt.xlabel('Epoch')
-    plt.title('Training info for '+model_name +' on ' + dataset_name)
+    plt.title('Training info for ' + model_name +' on ' + dataset_name)
     plt.legend()
-    plt.savefig('graphs/loss')
+    plt.savefig('graphs/' + model_name + 'loss')
+    plt.clf()
 
 def train_svm(X_tr, y_tr, X_te, y_te):
     svc = LinearSVC(verbose=True)
@@ -44,13 +52,14 @@ def train_svm(X_tr, y_tr, X_te, y_te):
 def train_model(model, opt, train_load, val_load, test_load, epochs, model_name=""):
     print('Starting training')
     epoch_losses = []
+    best_val_loss = 1000
     for epoch in range(epochs):
         model.train()
         losses = []
         lossf = nn.CrossEntropyLoss()
         for _, batch in enumerate(train_load):
             embed_gpu, lab_gpu = tuple(i.to(device) for i in batch)
-            model.zero_grad()
+            opt.zero_grad()
             logits = model(embed_gpu)
             loss = lossf(logits, lab_gpu)
             losses.append(loss.item() / len(batch))
@@ -59,12 +68,13 @@ def train_model(model, opt, train_load, val_load, test_load, epochs, model_name=
             opt.step()
         epoch_loss = np.mean(losses)
         print('Training Loss: {}'.format(epoch_loss))
-
         val_loss = validate_model(model, val_load, 'Validation')
         epoch_losses.append((epoch, epoch_loss, val_loss))
+        graph(epoch_losses, model_name, 'amazon_us_reviews')
+        if val_loss < best_val_loss:
+            torch.save(model.state_dict(), 'checkpoint.pth')
     validate_model(model, test_load, 'Test')
-    graph(epoch_losses, model_name, 'amazon_us_reviews')
-    torch.save(model, 'models/CNN.pth')
+    torch.save(model, 'models/' + model_name + '.pth')
     return epoch_losses
 
 
@@ -88,6 +98,7 @@ def validate_model(model, loader, set_name):
     return np.mean(losses)
 
 device = 'cuda'
+gpu_to_cpu('checkpoint.pth', nets.Net6)
 # device = 'cpu'
 #torch.autograd.set_detect_anomaly(True)
 DATASET_NAME = 'amazon_us_reviews'
@@ -141,18 +152,18 @@ y_train_tensor, y_test_tensor = \
 
 X_train = TensorDataset(X_embed_train, y_train_tensor)
 train_sampler = RandomSampler(X_train)
-train_loader = DataLoader(X_train, sampler=train_sampler, batch_size=25)
+train_loader = DataLoader(X_train, sampler=train_sampler, batch_size=50)
 
 test_data = TensorDataset(X_embed_test, y_test_tensor)
 test_sampler = SequentialSampler(test_data)
-test_loader = DataLoader(test_data, sampler=test_sampler, batch_size=25)
+test_loader = DataLoader(test_data, sampler=test_sampler, batch_size=50)
 
 
 
 #net = nets.Net1(filter_sizes=[2,3,4], filter_amount=10, dropout=.1,  classes=5)
 # train_svm(X_tfidf_train, y_train, X_tfidf_test, y_test)
 # svc = LinearSVC(verbose=True, class_weight='balanced')
-net = nets.Net1()
+net = nets.Net6()
 arch = hl.build_graph(net, torch.zeros(1,1,768))
 arch.save("architecture", format="jpg")
 net.to(device)
