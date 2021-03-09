@@ -9,11 +9,12 @@ import crypten.communicator as comm
 def run():
     dummy_model = nets.Net6()
     #plaintext_model = crypten.load('models/CNN.pth', dummy_model=dummy_model, src=0, map_location=torch.device('cpu'))
-    plaintext_model = crypten.load('models/CNN.pth', dummy_model=dummy_model, src=0)
+    plaintext_model = crypten.load('checkpoint.pth', dummy_model=dummy_model, src=0)
     dummy_input = torch.empty((1, 1, 768))
     dummy_input.to('cuda')
     private_model = crypten.nn.from_pytorch(plaintext_model, dummy_input)
     private_model.encrypt()
+    private_model.eval()
     input = torch.rand((1, 1, 768))
     input = crypten.cryptensor(input, src=0)
     classification = private_model(input)
