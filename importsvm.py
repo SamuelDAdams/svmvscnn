@@ -7,7 +7,7 @@ import crypten.communicator as comm
 
 @mpc.run_multiprocess(world_size=2)
 def run():
-    dummy_model = nets.Net2()
+    dummy_model = nets.Net6()
     #plaintext_model = crypten.load('models/CNN.pth', dummy_model=dummy_model, src=0, map_location=torch.device('cpu'))
     plaintext_model = crypten.load('models/CNN.pth', dummy_model=dummy_model, src=0)
     dummy_input = torch.empty((1, 1, 768))
@@ -59,5 +59,5 @@ def test_mp1d():
 
 crypten.init()
 # test_mp1d()
-test_mp2d()
-#run()
+#test_mp2d()
+run()

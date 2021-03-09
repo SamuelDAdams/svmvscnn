@@ -75,6 +75,8 @@ def train_model(model, opt, train_load, val_load, test_load, epochs, model_name=
             torch.save(model.state_dict(), 'checkpoint.pth')
     validate_model(model, test_load, 'Test')
     torch.save(model, 'models/' + model_name + '.pth')
+    gpu_to_cpu('checkpoint.pth', nets.Net6)
+    gpu_to_cpu('models/' + model_name + '.pth', nets.Net6)
     return epoch_losses
 
 
@@ -98,7 +100,6 @@ def validate_model(model, loader, set_name):
     return np.mean(losses)
 
 device = 'cuda'
-gpu_to_cpu('checkpoint.pth', nets.Net6)
 # device = 'cpu'
 #torch.autograd.set_detect_anomaly(True)
 DATASET_NAME = 'amazon_us_reviews'
@@ -132,10 +133,10 @@ if not path.exists('train/embeddings.npy'):
     np.save('test/labels.npy', test_labels, allow_pickle=True)
 
 train_embeddings = np.load('train/embeddings.npy', allow_pickle=True)
-train_labels = np.load('train/labels.npy', allow_pickle=True)
+train_labels = np.load('train/bin_labels.npy', allow_pickle=True)
 
 test_embeddings = np.load('test/embeddings.npy', allow_pickle=True)
-test_labels = np.load('test/labels.npy', allow_pickle=True)
+test_labels = np.load('test/bin_labels.npy', allow_pickle=True)
 # vectorizer = TfidfVectorizer()
 # tfidf_data = vectorizer.fit_transform(lines)
 # dataset = None
@@ -164,8 +165,8 @@ test_loader = DataLoader(test_data, sampler=test_sampler, batch_size=50)
 # train_svm(X_tfidf_train, y_train, X_tfidf_test, y_test)
 # svc = LinearSVC(verbose=True, class_weight='balanced')
 net = nets.Net6()
-arch = hl.build_graph(net, torch.zeros(1,1,768))
-arch.save("architecture", format="jpg")
+#arch = hl.build_graph(net, torch.zeros(1,1,768))
+#arch.save("architecture", format="jpg")
 net.to(device)
 optimizer = AdamW(net.parameters(), lr=0.002)
 train_model(net, optimizer, train_loader, test_loader, test_loader, 100, model_name='CNN')
