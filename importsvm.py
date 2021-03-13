@@ -8,8 +8,8 @@ import crypten.communicator as comm
 @mpc.run_multiprocess(world_size=2)
 def run():
     dummy_model = nets.Net6()
-    #plaintext_model = crypten.load('models/CNN.pth', dummy_model=dummy_model, src=0, map_location=torch.device('cpu'))
-    plaintext_model = crypten.load('checkpoint.pth', dummy_model=dummy_model, src=0)
+    plaintext_model = crypten.load('checkpoint.pth', dummy_model=dummy_model, src=0, map_location=torch.device('cpu'))
+    #plaintext_model = crypten.load('checkpoint.pth', dummy_model=dummy_model, src=0)
     dummy_input = torch.empty((1, 1, 768))
     dummy_input.to('cuda')
     private_model = crypten.nn.from_pytorch(plaintext_model, dummy_input)
@@ -59,6 +59,7 @@ def test_mp1d():
     
 
 crypten.init()
+torch.set_num_threads(1)
 # test_mp1d()
 #test_mp2d()
 run()
